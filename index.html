@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DGS 性能测试</title>
+  <style>
+    body {
+      margin: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <link rel="stylesheet" href="performance-ui.css">
+
+  <!-- 性能测试界面 -->
+  <div id="performance-overlay" class="performance-overlay">
+    <button class="toggle-button" onclick="toggleOverlay()">−</button>
+
+    <h3>3DGS 性能测试</h3>
+
+    <div class="control-section">
+      <h4>自动化测试</h4>
+      <button id="start-test-btn" class="test-button" onclick="startPerformanceTest()">
+        开始完整测试
+      </button>
+      <button id="stop-test-btn" class="test-button" onclick="stopPerformanceTest()" disabled>
+        停止测试
+      </button>
+    </div>
+
+    <div id="progress-container" class="progress-container">
+      <div class="progress-bar">
+        <div id="progress-fill" class="progress-fill"></div>
+      </div>
+      <div id="progress-text" class="progress-text">准备中...</div>
+    </div>
+
+    <div class="status-section">
+      <div class="status-item">
+        <span class="status-label">当前状态:</span>
+        <span id="test-status" class="status-value">就绪</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">已测试模型:</span>
+        <span id="tested-models" class="status-value">0/2</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">预计剩余:</span>
+        <span id="estimated-time" class="status-value">未知</span>
+      </div>
+    </div>
+
+    <div class="log-section" id="log-container">
+      <div class="log-entry info">性能测试器已就绪，点击"开始完整测试"</div>
+      <div class="log-entry">测试将自动进行约2分钟，完成后会下载结果文件</div>
+    </div>
+  </div>
+
+  <script src="performance-tester.js"></script>
+  <script type="module">
+    import * as THREE from "three";
+    import { SplatMesh } from "@sparkjsdev/spark";
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // 默认加载一个模型
+    const splatURL = "/splats/model_56k.ply";
+    const butterfly = new SplatMesh({ url: splatURL });
+    butterfly.position.set(0, 0, -3);
+    scene.add(butterfly);
+
+    // 渲染循环
+    renderer.setAnimationLoop(function animate(time) {
+      renderer.render(scene, camera);
+      butterfly.rotation.y += 0.01;
+    });
+
+    // 性能测试相关变量
+    let performanceTester = null;
+    let testStartTime = 0;
+
+    // 初始化性能测试器
+    function initPerformanceTester() {
+      performanceTester = new PerformanceTester();
+
+      // 设置回调函数
+      performanceTester.setCallbacks(
+        // 进度回调
+        (percent, message) => {
+          updateProgress(percent, message);
+        },
+        // 日志回调
+        (message) => {
+          addLogEntry(message);
+        }
+      );
+    }
+
+    // 更新进度显示
+    function updateProgress(percent, message) {
+      const progressContainer = document.getElementById('progress-container');
+      const progressFill = document.getElementById('progress-fill');
+      const progressText = document.getElementById('progress-text');
+
+      if (percent > 0) {
+        progressContainer.classList.add('visible');
+      }
+
+      progressFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+      progressText.textContent = message || `进度: ${percent.toFixed(1)}%`;
+
+      // 更新预计剩余时间
+      if (percent > 5 && testStartTime > 0) {
+        const elapsed = Date.now() - testStartTime;
+        const estimated = (elapsed / percent) * (100 - percent);
+        const minutes = Math.floor(estimated / 60000);
+        const seconds = Math.floor((estimated % 60000) / 1000);
+        document.getElementById('estimated-time').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      }
+    }
+
+    // 添加日志条目
+    function addLogEntry(message, type = 'info') {
+      const logContainer = document.getElementById('log-container');
+      const logEntry = document.createElement('div');
+      logEntry.className = `log-entry ${type}`;
+      logEntry.textContent = message;
+
+      logContainer.appendChild(logEntry);
+      logContainer.scrollTop = logContainer.scrollHeight;
+
+      // 限制日志条目数量
+      const entries = logContainer.children;
+      if (entries.length > 20) {
+        logContainer.removeChild(entries[0]);
+      }
+    }
+
+    // 开始性能测试
+    window.startPerformanceTest = async function () {
+      if (!performanceTester) {
+        initPerformanceTester();
+      }
+
+      const startBtn = document.getElementById('start-test-btn');
+      const stopBtn = document.getElementById('stop-test-btn');
+
+      startBtn.disabled = true;
+      startBtn.classList.add('running');
+      startBtn.textContent = '测试进行中...';
+      stopBtn.disabled = false;
+
+      document.getElementById('test-status').textContent = '运行中';
+      testStartTime = Date.now();
+
+      addLogEntry('开始自动化性能测试...', 'success');
+
+      try {
+        await performanceTester.runFullTest(scene, camera, renderer, SplatMesh);
+        addLogEntry('测试完成！结果文件已自动下载', 'success');
+      } catch (error) {
+        addLogEntry(`测试失败: ${error.message}`, 'error');
+      } finally {
+        // 重置UI状态
+        startBtn.disabled = false;
+        startBtn.classList.remove('running');
+        startBtn.textContent = '开始完整测试';
+        stopBtn.disabled = true;
+
+        document.getElementById('test-status').textContent = '完成';
+        document.getElementById('progress-container').classList.remove('visible');
+      }
+    };
+
+    // 停止性能测试
+    window.stopPerformanceTest = function () {
+      if (performanceTester) {
+        performanceTester.isRunning = false;
+        addLogEntry('用户手动停止测试', 'info');
+      }
+    };
+
+    // 切换界面显示/隐藏
+    window.toggleOverlay = function () {
+      const overlay = document.getElementById('performance-overlay');
+      overlay.classList.toggle('minimized');
+    };
+
+    // 更新测试状态显示
+    function updateTestStatus() {
+      if (performanceTester) {
+        const status = performanceTester.getStatus();
+        const testedCount = Object.keys(performanceTester.testResults.tests).length;
+        document.getElementById('tested-models').textContent = `${testedCount}/2`;
+      }
+    }
+
+    // 定期更新状态
+    setInterval(updateTestStatus, 1000);
+
+    // 窗口大小调整
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 初始化
+    addLogEntry('3DGS 渲染器已加载', 'success');
+    addLogEntry('点击"开始完整测试"进行自动化性能分析', 'info');
+  </script>
+</body>
+
+</html>

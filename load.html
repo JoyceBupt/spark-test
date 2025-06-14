@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Splat Model Viewer</title>
+  <style>
+    body {
+      margin: 0;
+    }
+
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 100;
+    }
+
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="controls">
+    <button id="load56k">加载 56K 模型</button>
+    <button id="load150k">加载 150K 模型</button>
+  </div>
+  <script type="module">
+    import * as THREE from "three";
+    import { SplatMesh } from "@sparkjsdev/spark";
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement)
+
+    let currentSplatMesh = null;
+
+    function loadModel(url) {
+      // 如果已存在模型，先从场景中移除并释放资源
+      if (currentSplatMesh) {
+        scene.remove(currentSplatMesh);
+        if (typeof currentSplatMesh.dispose === 'function') {
+          currentSplatMesh.dispose();
+        }
+      }
+
+      // 创建新的 SplatMesh
+      currentSplatMesh = new SplatMesh({ url });
+      // 将模型Z轴位置从-3改为-2，使其离镜头更近，看起来更大
+      currentSplatMesh.position.set(0, 0, -1);
+      scene.add(currentSplatMesh);
+    }
+
+    // 为按钮绑定点击事件
+    document.getElementById('load56k').addEventListener('click', () => {
+      loadModel("/splats/model_56k.ply");
+    });
+
+    document.getElementById('load150k').addEventListener('click', () => {
+      loadModel("/splats/model_150k.ply");
+    });
+
+    // 初始加载56K模型
+    loadModel("/splats/model_56k.ply");
+
+    // 渲染循环
+    renderer.setAnimationLoop(function animate() {
+      if (currentSplatMesh) {
+        // currentSplatMesh.rotation.y += 0.01;
+      }
+      renderer.render(scene, camera);
+    });
+  </script>
+</body>
+
+</html>
