@@ -34,6 +34,16 @@
   <script type="module">
     import * as THREE from "three";
     import { SplatMesh } from "@sparkjsdev/spark";
+    import VConsole from "vconsole";
+    import Stats from "stats.js";
+
+    // 初始化手机端控制台
+    const vConsole = new VConsole();
+
+    // 初始化性能监视器
+    const stats = new Stats();
+    stats.showPanel(0); // 0: fps, 1: ms, 2: mb
+    document.body.appendChild(stats.dom);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -74,10 +84,14 @@
 
     // 渲染循环
     renderer.setAnimationLoop(function animate() {
+      stats.begin(); // 开始性能监控
+
       if (currentSplatMesh) {
         currentSplatMesh.rotation.y += 0.01;
       }
       renderer.render(scene, camera);
+
+      stats.end(); // 结束性能监控
     });
   </script>
 </body>
