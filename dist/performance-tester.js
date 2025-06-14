@@ -114,7 +114,10 @@ class PerformanceTester {
                 // 性能测试循环 (15秒)
                 const testDuration = 15000;
                 const testStartTime = performance.now();
+                
                 let frameCount = 0;
+                let lastUiUpdateTime = performance.now();
+                let framesSinceLastUiUpdate = 0;
 
                 const testLoop = () => {
                     // 检查停止条件
@@ -141,13 +144,10 @@ class PerformanceTester {
                     const renderTime = performance.now() - renderStartTime;
                     
                     const totalFrameTime = performance.now() - frameStartTime;
-                    // 避免除以零
-                    const fps = totalFrameTime > 0 ? 1000 / totalFrameTime : 0;
                     
                     // 收集数据
                     testData.samples.push({
                         frameNumber: frameCount,
-                        fps: fps,
                         totalFrameTime: totalFrameTime,
                         sortTime: sortTime,
                         renderTime: renderTime,
@@ -157,9 +157,19 @@ class PerformanceTester {
                     });
                     
                     frameCount++;
-                    const progress = ((performance.now() - testStartTime) / testDuration) * 100;
-                    if (onProgress) {
-                        onProgress(progress, `测试 ${modelConfig.name} - FPS: ${Math.round(fps)}`);
+                    framesSinceLastUiUpdate++;
+                    const now = performance.now();
+
+                    // 平滑地更新UI，避免FPS疯狂跳动
+                    if (now - lastUiUpdateTime > 250) { // 每 250ms 更新一次UI
+                        const elapsedMs = now - lastUiUpdateTime;
+                        const avgFpsForUi = framesSinceLastUiUpdate / (elapsedMs / 1000);
+                        const progress = ((now - testStartTime) / testDuration) * 100;
+                        if (onProgress) {
+                            onProgress(progress, `测试 ${modelConfig.name} - FPS: ${Math.round(avgFpsForUi)}`);
+                        }
+                        lastUiUpdateTime = now;
+                        framesSinceLastUiUpdate = 0;
                     }
                     
                     // 调度下一帧
@@ -188,14 +198,13 @@ class PerformanceTester {
         if (validSamples.length === 0) return;
 
         const getAverage = (arr, prop) => arr.reduce((sum, s) => sum + s[prop], 0) / arr.length;
+        const totalTestDuration = validSamples.reduce((sum, s) => sum + s.totalFrameTime, 0);
         
         testData.statistics = {
             totalFrames: validSamples.length,
             
-            // FPS
-            avgFPS: getAverage(validSamples, 'fps'),
-            minFPS: Math.min(...validSamples.map(s => s.fps)),
-            maxFPS: Math.max(...validSamples.map(s => s.fps)),
+            // FPS - 使用更精确的总时间/总帧数计算
+            avgFPS: validSamples.length / (totalTestDuration / 1000),
             
             // 帧时间
             avgFrameTime: getAverage(validSamples, 'totalFrameTime'),
