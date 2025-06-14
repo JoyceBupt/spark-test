@@ -7,6 +7,7 @@
   <style>
     body {
       margin: 0;
+      background-color: white;
     }
 
     #controls {
@@ -37,6 +38,7 @@
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer();
+    renderer.setClearColor(0xffffff);
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement)
 
@@ -73,7 +75,7 @@
     // 渲染循环
     renderer.setAnimationLoop(function animate() {
       if (currentSplatMesh) {
-        // currentSplatMesh.rotation.y += 0.01;
+        currentSplatMesh.rotation.y += 0.01;
       }
       renderer.render(scene, camera);
     });
