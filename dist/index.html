@@ -3,65 +3,70 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3DGS 性能测试</title>
+  <title>Spark 3DGS 交互演示</title>
   <style>
     body {
       margin: 0;
+      background-color: #111;
+      color: white;
+      font-family: sans-serif;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #controls-panel {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 100;
+    }
+
+    button {
+      padding: 8px 12px;
+      margin: 5px;
+      cursor: pointer;
+    }
+
+    #info-panel {
+      position: absolute;
+      bottom: 15px;
+      left: 15px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 100;
+      font-size: 14px;
     }
   </style>
-  <script type="module" crossorigin src="/assets/main-DQ5qXpvY.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/stats.min-jGWFgUE6.js">
-  <link rel="stylesheet" crossorigin href="/assets/main-BZ7XfoUY.css">
+  <script type="module" crossorigin src="/assets/main-zvRFwJli.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/spark.module-C5KPrdGX.js">
 </head>
 
 <body>
 
-  <!-- 性能测试界面 -->
-  <div id="performance-overlay" class="performance-overlay">
-    <button class="toggle-button" onclick="toggleOverlay()">−</button>
+  <canvas id="spark-canvas"></canvas>
 
-    <h3>3DGS 性能测试</h3>
-
-    <div class="control-section">
-      <h4>自动化测试</h4>
-      <button id="start-test-btn" class="test-button" onclick="startPerformanceTest()">
-        开始完整测试
-      </button>
-      <button id="stop-test-btn" class="test-button" onclick="stopPerformanceTest()" disabled>
-        停止测试
-      </button>
-    </div>
-
-    <div id="progress-container" class="progress-container">
-      <div class="progress-bar">
-        <div id="progress-fill" class="progress-fill"></div>
-      </div>
-      <div id="progress-text" class="progress-text">准备中...</div>
-    </div>
-
-    <div class="status-section">
-      <div class="status-item">
-        <span class="status-label">当前状态:</span>
-        <span id="test-status" class="status-value">就绪</span>
-      </div>
-      <div class="status-item">
-        <span class="status-label">已测试模型:</span>
-        <span id="tested-models" class="status-value">0/2</span>
-      </div>
-      <div class="status-item">
-        <span class="status-label">预计剩余:</span>
-        <span id="estimated-time" class="status-value">未知</span>
-      </div>
-    </div>
-
-    <div class="log-section" id="log-container">
-      <div class="log-entry info">性能测试器已就绪，点击"开始完整测试"</div>
-      <div class="log-entry">测试将自动进行约2分钟，完成后会下载结果文件</div>
-    </div>
+  <div id="controls-panel">
+    <button id="load56k">加载 56K 模型</button>
+    <button id="load150k">加载 150K 模型</button>
+    <hr style="margin: 8px 0;">
+    <button id="toggle-bg">切换背景</button>
+    <button id="toggle-rotation">切换旋转</button>
   </div>
 
-  <script src="/performance-tester.js"></script>
+  <div id="info-panel">
+    使用 WASD 和鼠标进行漫游<br>
+    点击场景进行交互
+  </div>
+
+
 </body>
 
 </html>

@@ -33,7 +33,7 @@
   </div>
   <script type="module">
     import * as THREE from "three";
-    import { SplatMesh } from "@sparkjsdev/spark";
+    import { SparkControls, SplatMesh, SparkRenderer } from "@sparkjsdev/spark";
     import VConsole from "vconsole";
     import Stats from "stats.js";
 
@@ -46,11 +46,19 @@
     document.body.appendChild(stats.dom);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 2;
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: false,
+    });
+    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setClearColor(0xffffff);
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement)
+
+    // SparkControls for FPS-style navigation.
+    const controls = new SparkControls({ canvas: renderer.domElement });
 
     let currentSplatMesh = null;
 
@@ -82,9 +90,18 @@
     // 初始加载56K模型
     loadModel("/splats/model_56k.ply");
 
+    // Handle resizing
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
     // 渲染循环
     renderer.setAnimationLoop(function animate() {
       stats.begin(); // 开始性能监控
+
+      controls.update(camera);
 
       if (currentSplatMesh) {
         currentSplatMesh.rotation.y += 0.01;

@@ -3,235 +3,197 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3DGS 性能测试</title>
+  <title>Spark 3DGS 交互演示</title>
   <style>
     body {
       margin: 0;
+      background-color: #111;
+      color: white;
+      font-family: sans-serif;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #controls-panel {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 100;
+    }
+
+    button {
+      padding: 8px 12px;
+      margin: 5px;
+      cursor: pointer;
+    }
+
+    #info-panel {
+      position: absolute;
+      bottom: 15px;
+      left: 15px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 100;
+      font-size: 14px;
     }
   </style>
 </head>
 
 <body>
-  <link rel="stylesheet" href="performance-ui.css">
 
-  <!-- 性能测试界面 -->
-  <div id="performance-overlay" class="performance-overlay">
-    <button class="toggle-button" onclick="toggleOverlay()">−</button>
+  <canvas id="spark-canvas"></canvas>
 
-    <h3>3DGS 性能测试</h3>
-
-    <div class="control-section">
-      <h4>自动化测试</h4>
-      <button id="start-test-btn" class="test-button" onclick="startPerformanceTest()">
-        开始完整测试
-      </button>
-      <button id="stop-test-btn" class="test-button" onclick="stopPerformanceTest()" disabled>
-        停止测试
-      </button>
-    </div>
-
-    <div id="progress-container" class="progress-container">
-      <div class="progress-bar">
-        <div id="progress-fill" class="progress-fill"></div>
-      </div>
-      <div id="progress-text" class="progress-text">准备中...</div>
-    </div>
-
-    <div class="status-section">
-      <div class="status-item">
-        <span class="status-label">当前状态:</span>
-        <span id="test-status" class="status-value">就绪</span>
-      </div>
-      <div class="status-item">
-        <span class="status-label">已测试模型:</span>
-        <span id="tested-models" class="status-value">0/2</span>
-      </div>
-      <div class="status-item">
-        <span class="status-label">预计剩余:</span>
-        <span id="estimated-time" class="status-value">未知</span>
-      </div>
-    </div>
-
-    <div class="log-section" id="log-container">
-      <div class="log-entry info">性能测试器已就绪，点击"开始完整测试"</div>
-      <div class="log-entry">测试将自动进行约2分钟，完成后会下载结果文件</div>
-    </div>
+  <div id="controls-panel">
+    <button id="load56k">加载 56K 模型</button>
+    <button id="load150k">加载 150K 模型</button>
+    <hr style="margin: 8px 0;">
+    <button id="toggle-bg">切换背景</button>
+    <button id="toggle-rotation">切换旋转</button>
   </div>
 
-  <script src="/performance-tester.js"></script>
+  <div id="info-panel">
+    使用 WASD 和鼠标进行漫游<br>
+    点击场景进行交互
+  </div>
+
   <script type="module">
     import * as THREE from "three";
-    import { SplatMesh } from "@sparkjsdev/spark";
-    import VConsole from "vconsole";
-    import Stats from "stats.js";
+    import { SparkControls, SplatMesh } from "@sparkjsdev/spark";
 
-    // 初始化手机端控制台
-    const vConsole = new VConsole();
-
-    // 初始化性能监视器
-    const stats = new Stats();
-    stats.showPanel(0); // 0: fps, 1: ms, 2: mb
-    document.body.appendChild(stats.dom);
-
+    // --- 核心组件 ---
+    const canvas = document.getElementById('spark-canvas');
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 2;
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+    const controls = new SparkControls({ canvas });
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    let currentSplatMesh = null;
+    let isRotating = true;
 
-    // 默认加载一个模型
-    const splatURL = "/splats/model_56k.ply";
-    const butterfly = new SplatMesh({ url: splatURL });
-    butterfly.position.set(0, 0, -3);
-    scene.add(butterfly);
+    // --- 初始化函数 ---
+    function init() {
+      // 设置渲染器
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight, false);
 
-    // 渲染循环
-    renderer.setAnimationLoop(function animate(time) {
-      stats.begin(); // 开始性能监控
+      // 绑定事件
+      window.addEventListener('resize', onWindowResize);
+      window.addEventListener('click', onCanvasClick);
+      document.getElementById('load56k').addEventListener('click', () => loadModel("/splats/model_56k.ply"));
+      document.getElementById('load150k').addEventListener('click', () => loadModel("/splats/model_150k.ply"));
+      document.getElementById('toggle-bg').addEventListener('click', toggleBackground);
+      document.getElementById('toggle-rotation').addEventListener('click', toggleRotation);
 
-      renderer.render(scene, camera);
-      if (butterfly) {
-        butterfly.rotation.y += 0.01;
-      }
+      // 初始加载
+      loadModel("/splats/model_56k.ply");
 
-      stats.end(); // 结束性能监控
-    });
-
-    // 性能测试相关变量
-    let performanceTester = null;
-    let testStartTime = 0;
-
-    // 初始化性能测试器
-    function initPerformanceTester() {
-      performanceTester = new PerformanceTester();
-
-      // 设置回调函数
-      performanceTester.setCallbacks(
-        // 进度回调
-        (percent, message) => {
-          updateProgress(percent, message);
-        },
-        // 日志回调
-        (message) => {
-          addLogEntry(message);
-        }
-      );
+      // 启动渲染循环
+      renderer.setAnimationLoop(animate);
+      console.log("Spark 演示已初始化。您现在可以使用 DevTools 进行性能分析。");
     }
 
-    // 更新进度显示
-    function updateProgress(percent, message) {
-      const progressContainer = document.getElementById('progress-container');
-      const progressFill = document.getElementById('progress-fill');
-      const progressText = document.getElementById('progress-text');
-
-      if (percent > 0) {
-        progressContainer.classList.add('visible');
+    // --- 模型加载 ---
+    function loadModel(url) {
+      if (currentSplatMesh) {
+        scene.remove(currentSplatMesh);
+        currentSplatMesh.dispose?.();
       }
-
-      progressFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
-      progressText.textContent = message || `进度: ${percent.toFixed(1)}%`;
-
-      // 更新预计剩余时间
-      if (percent > 5 && testStartTime > 0) {
-        const elapsed = Date.now() - testStartTime;
-        const estimated = (elapsed / percent) * (100 - percent);
-        const minutes = Math.floor(estimated / 60000);
-        const seconds = Math.floor((estimated % 60000) / 1000);
-        document.getElementById('estimated-time').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-      }
+      currentSplatMesh = new SplatMesh({ url });
+      currentSplatMesh.position.set(0, 0, -1);
+      scene.add(currentSplatMesh);
+      console.log(`开始加载模型: ${url}`);
+      currentSplatMesh.onLoad = () => {
+        console.log(`模型加载完成，Splat 数量: ${currentSplatMesh.splatCount}`);
+      };
     }
 
-    // 添加日志条目
-    function addLogEntry(message, type = 'info') {
-      const logContainer = document.getElementById('log-container');
-      const logEntry = document.createElement('div');
-      logEntry.className = `log-entry ${type}`;
-      logEntry.textContent = message;
-
-      logContainer.appendChild(logEntry);
-      logContainer.scrollTop = logContainer.scrollHeight;
-
-      // 限制日志条目数量
-      const entries = logContainer.children;
-      if (entries.length > 20) {
-        logContainer.removeChild(entries[0]);
-      }
-    }
-
-    // 开始性能测试
-    window.startPerformanceTest = async function () {
-      if (!performanceTester) {
-        initPerformanceTester();
-      }
-
-      const startBtn = document.getElementById('start-test-btn');
-      const stopBtn = document.getElementById('stop-test-btn');
-
-      startBtn.disabled = true;
-      startBtn.classList.add('running');
-      startBtn.textContent = '测试进行中...';
-      stopBtn.disabled = false;
-
-      document.getElementById('test-status').textContent = '运行中';
-      testStartTime = Date.now();
-
-      addLogEntry('开始自动化性能测试...', 'success');
-
-      try {
-        await performanceTester.runFullTest(scene, camera, renderer, SplatMesh);
-        addLogEntry('测试完成！结果文件已自动下载', 'success');
-      } catch (error) {
-        addLogEntry(`测试失败: ${error.message}`, 'error');
-      } finally {
-        // 重置UI状态
-        startBtn.disabled = false;
-        startBtn.classList.remove('running');
-        startBtn.textContent = '开始完整测试';
-        stopBtn.disabled = true;
-
-        document.getElementById('test-status').textContent = '完成';
-        document.getElementById('progress-container').classList.remove('visible');
-      }
-    };
-
-    // 停止性能测试
-    window.stopPerformanceTest = function () {
-      if (performanceTester) {
-        performanceTester.isRunning = false;
-        addLogEntry('用户手动停止测试', 'info');
-      }
-    };
-
-    // 切换界面显示/隐藏
-    window.toggleOverlay = function () {
-      const overlay = document.getElementById('performance-overlay');
-      overlay.classList.toggle('minimized');
-    };
-
-    // 更新测试状态显示
-    function updateTestStatus() {
-      if (performanceTester) {
-        const status = performanceTester.getStatus();
-        const testedCount = Object.keys(performanceTester.testResults.tests).length;
-        document.getElementById('tested-models').textContent = `${testedCount}/2`;
-      }
-    }
-
-    // 定期更新状态
-    setInterval(updateTestStatus, 1000);
-
-    // 窗口大小调整
-    window.addEventListener('resize', () => {
+    // --- 事件处理 ---
+    function onWindowResize() {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+      renderer.setSize(window.innerWidth, window.innerHeight, false);
+    }
 
-    // 初始化
-    addLogEntry('3DGS 渲染器已加载', 'success');
-    addLogEntry('点击"开始完整测试"进行自动化性能分析', 'info');
+    function onCanvasClick(event) {
+      // 将鼠标点击位置转换为标准化设备坐标 (-1 to +1)
+      pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+      // 通过相机和鼠标位置更新射线
+      raycaster.setFromCamera(pointer, camera);
+
+      // 计算物体和射线的交点
+      // 注意：SplatMesh 的 raycast 可能只支持包围盒检测
+      if (currentSplatMesh) {
+        const intersects = raycaster.intersectObject(currentSplatMesh, true);
+        if (intersects.length > 0) {
+          console.log("点击到了 SplatMesh!", {
+            point: intersects[0].point,
+            distance: intersects[0].distance
+          });
+          // 可以在这里添加视觉反馈，例如让 info-panel 闪一下
+          const infoPanel = document.getElementById('info-panel');
+          infoPanel.style.transition = 'none';
+          infoPanel.style.background = '#00ff00';
+          setTimeout(() => {
+            infoPanel.style.transition = 'background 0.5s';
+            infoPanel.style.background = 'rgba(0,0,0,0.6)';
+          }, 100);
+        } else {
+          console.log("未点击到模型。");
+        }
+      }
+    }
+
+    function toggleBackground() {
+      const currentColor = renderer.getClearColor(new THREE.Color());
+      const infoPanel = document.getElementById('info-panel');
+      if (currentColor.getHex() === 0x111111) {
+        renderer.setClearColor(0xffffff); // White
+        document.body.style.color = 'black';
+        infoPanel.style.color = 'black';
+        infoPanel.style.background = 'rgba(255,255,255,0.6)';
+      } else {
+        renderer.setClearColor(0x111111); // Black
+        document.body.style.color = 'white';
+        infoPanel.style.color = 'white';
+        infoPanel.style.background = 'rgba(0,0,0,0.6)';
+      }
+    }
+
+    function toggleRotation() {
+      isRotating = !isRotating;
+      console.log(`模型自动旋转: ${isRotating ? '开启' : '关闭'}`);
+    }
+
+    // --- 渲染循环 ---
+    function animate() {
+      // 更新相机控制器
+      controls.update(camera);
+
+      // 持续动画
+      if (currentSplatMesh && isRotating) {
+        currentSplatMesh.rotation.y += 0.005;
+      }
+
+      // 渲染场景
+      renderer.render(scene, camera);
+    }
+
+    // --- 启动 ---
+    init();
   </script>
+
 </body>
 
 </html>
