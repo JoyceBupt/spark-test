@@ -15,6 +15,9 @@
       top: 10px;
       left: 10px;
       z-index: 100;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 5px;
     }
 
     button {
@@ -22,6 +25,22 @@
       margin: 5px;
       font-size: 14px;
       cursor: pointer;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 3px;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    #rotateToggle {
+      background: #28a745;
+    }
+
+    #rotateToggle.active {
+      background: #dc3545;
     }
   </style>
 </head>
@@ -30,6 +49,8 @@
   <div id="controls">
     <button id="load56k">加载 56K 模型</button>
     <button id="load150k">加载 150K 模型</button>
+    <br>
+    <button id="rotateToggle">开启旋转</button>
   </div>
   <script type="module">
     import * as t3d from 't3d';
@@ -71,6 +92,8 @@
     const plyLoader = new PLYLoader();
 
     let currentSplatNode = null;
+    let isRotating = false; // 默认静止
+    const rotationSpeed = 0.01;
 
     async function loadModel(url) {
       if (currentSplatNode) {
@@ -88,11 +111,26 @@
         console.log('Model loaded successfully', node);
         currentSplatNode = node;
         currentSplatNode.position.set(0, 0, -1);
-        currentSplatNode.scale.set(1.5, 1.5, 1.5);
+        // 在原有基础上放大两倍 (1.5 * 2 = 3.0)
+        currentSplatNode.scale.set(3.0, 3.0, 3.0);
+        currentSplatNode.euler.y = Math.PI;
         currentSplatNode.euler.x = Math.PI; // Flip the model upside down
         scene.add(currentSplatNode);
       } catch (e) {
         console.error('Error loading model:', e);
+      }
+    }
+
+    // 旋转切换功能
+    function toggleRotation() {
+      isRotating = !isRotating;
+      const toggleBtn = document.getElementById('rotateToggle');
+      if (isRotating) {
+        toggleBtn.textContent = '停止旋转';
+        toggleBtn.classList.add('active');
+      } else {
+        toggleBtn.textContent = '开启旋转';
+        toggleBtn.classList.remove('active');
       }
     }
 
@@ -103,6 +141,8 @@
     document.getElementById('load150k').addEventListener('click', () => {
       loadModel("/splats/model_150k.ply");
     });
+
+    document.getElementById('rotateToggle').addEventListener('click', toggleRotation);
 
     loadModel("/splats/model_56k.ply");
 
@@ -121,8 +161,10 @@
       controls.update();
 
       if (currentSplatNode) {
-        // Auto-rotation
-        currentSplatNode.euler.y += 0.01;
+        // Auto-rotation (only if enabled)
+        if (isRotating) {
+          currentSplatNode.euler.y += rotationSpeed;
+        }
         // The splat node requires an update call each frame
         currentSplatNode.update(camera, backRenderTarget.width, backRenderTarget.height);
       }

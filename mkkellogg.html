@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <title>mkkellogg/GaussianSplats3D Splat Model Viewer</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: white;
+    }
+
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 3px;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    #rotateToggle {
+      background: #28a745;
+    }
+
+    #rotateToggle.active {
+      background: #dc3545;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="controls">
+    <button id="load56k">加载 56K 模型</button>
+    <button id="load150k">加载 150K 模型</button>
+    <br>
+    <button id="rotateToggle">开启旋转</button>
+  </div>
+  <script type="module">
+    import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+    import VConsole from "vconsole";
+    import Stats from "stats.js";
+
+    const vConsole = new VConsole();
+
+    const stats = new Stats();
+    stats.showPanel(0);
+    document.body.appendChild(stats.dom);
+
+    let viewer = null;
+    let isLoading = false;
+    let animationId = null;
+    let isRotating = false; // 默认静止
+
+    function createViewer() {
+      return new GaussianSplats3D.Viewer({
+        'selfDrivenMode': false,
+        'useBuiltInControls': true,
+      });
+    }
+
+    function stopAnimation() {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+    }
+
+    let autoRotationAngle = 0;
+    const autoRotationSpeed = 0.5; // degrees per frame
+
+    function startAnimation() {
+      function animate() {
+        stats.begin();
+
+        // Only update and render when viewer exists and has valid data
+        if (viewer && viewer.splatMesh && !isLoading) {
+          // Auto-rotate the model only if rotation is enabled
+          if (isRotating) {
+            autoRotationAngle += autoRotationSpeed;
+            if (autoRotationAngle >= 360) autoRotationAngle -= 360;
+
+            // Apply rotation to the splat mesh
+            if (viewer.splatMesh.rotation) {
+              viewer.splatMesh.rotation.y = autoRotationAngle * Math.PI / 180;
+            }
+          }
+
+          viewer.update();
+          viewer.render();
+        }
+
+        stats.end();
+        animationId = requestAnimationFrame(animate);
+      }
+      animate();
+    }
+
+    async function loadModel(url) {
+      if (isLoading) return;
+      isLoading = true;
+
+      try {
+        // Stop current animation loop
+        stopAnimation();
+
+        // Clean up existing viewer completely
+        if (viewer) {
+          // Wait for any ongoing operations to complete
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          // Try to dispose the viewer properly
+          if (viewer.dispose) {
+            viewer.dispose();
+          }
+          viewer = null;
+        }
+
+        // Wait a bit more to ensure cleanup
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Create a fresh viewer instance
+        viewer = createViewer();
+
+        // Load the new model with basic options
+        await viewer.addSplatScene(url, {
+          'showLoadingUI': true,
+        });
+
+        // Wait for the scene to be fully ready
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // Adjust the model orientation, position and scale after loading
+        if (viewer.splatMesh) {
+          // Scale up the model by 2x more (40x total, was 20x before)
+          viewer.splatMesh.scale.set(20, 20, 20);
+
+          // Rotate the model to get a good front-facing view
+          viewer.splatMesh.rotation.x = -Math.PI / 4; // Keep head upright
+          viewer.splatMesh.rotation.y = 0; // Rotate 180 degrees to face camera
+          viewer.splatMesh.rotation.z = 0; // Reset Z rotation
+
+          // Position the model better in view
+          viewer.splatMesh.position.y = 0; // Center vertically
+          viewer.splatMesh.position.x = 0; // Center horizontally
+        }
+
+        // Reset auto-rotation angle
+        autoRotationAngle = 0;
+
+        // Restart animation loop
+        startAnimation();
+
+      } catch (error) {
+        console.error("Failed to load model:", error);
+        // Try to recover by creating a new viewer
+        if (!viewer) {
+          viewer = createViewer();
+          startAnimation();
+        }
+      } finally {
+        isLoading = false;
+      }
+    }
+
+    // 旋转切换功能
+    function toggleRotation() {
+      isRotating = !isRotating;
+      const toggleBtn = document.getElementById('rotateToggle');
+      if (isRotating) {
+        toggleBtn.textContent = '停止旋转';
+        toggleBtn.classList.add('active');
+      } else {
+        toggleBtn.textContent = '开启旋转';
+        toggleBtn.classList.remove('active');
+      }
+    }
+
+    document.getElementById('load56k').addEventListener('click', () => {
+      loadModel('/splats/model_56k.ply');
+    });
+
+    document.getElementById('load150k').addEventListener('click', () => {
+      loadModel('/splats/model_150k.ply');
+    });
+
+    document.getElementById('rotateToggle').addEventListener('click', toggleRotation);
+
+    // Initialize with the first model
+    viewer = createViewer();
+    startAnimation();
+    loadModel('/splats/model_56k.ply');
+
+  </script>
+</body>
+
+</html>
