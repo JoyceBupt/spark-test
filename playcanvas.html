@@ -102,6 +102,9 @@
 
     app.start();
 
+    // 打印设备信息
+    console.log(`PlayCanvas using: ${app.graphicsDevice.deviceType}`);
+
     // Simple orbit camera implementation
     let cameraDistance = 3;
     let cameraYaw = 0;
@@ -179,7 +182,7 @@
         });
 
         // 设置模型缩放，在原基础上放大两倍
-        gsplat.setLocalScale(2, 2, 2);
+        gsplat.setLocalScale(3, 3, 3);
 
         app.root.addChild(gsplat);
       });

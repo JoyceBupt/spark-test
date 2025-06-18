@@ -85,6 +85,13 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement)
 
+    // 打印设备信息
+    const gl = renderer.getContext();
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    const gpuInfo = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'N/A';
+    console.log(`Spark (Three.js) using: ${gl.getParameter(gl.VERSION)}`);
+    console.log(`GPU: ${gpuInfo}`);
+
     // SparkControls for FPS-style navigation.
     const controls = new SparkControls({ canvas: renderer.domElement });
 
