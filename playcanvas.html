@@ -69,6 +69,13 @@
     stats.showPanel(0);
     document.body.appendChild(stats.dom);
 
+    // 放大并移动 stats
+    stats.dom.style.top = '10px';
+    stats.dom.style.right = '10px';
+    stats.dom.style.left = 'auto';
+    stats.dom.style.transform = 'scale(3)';
+    stats.dom.style.transformOrigin = 'top right';
+
     const canvas = document.getElementById('application-canvas');
     const app = new pc.Application(canvas, {
       mouse: new pc.Mouse(document.body),
