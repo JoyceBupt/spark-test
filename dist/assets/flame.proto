@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+// FLAME模型数据的Protocol Buffers定义
+// 对应Swift中的flame.pb.swift
+
+// 整数数组消息
+message IntArray {
+  repeated int32 values = 1;
+}
+
+// 浮点数数组消息
+message FloatArray {
+  repeated float values = 1;
+}
+
+// 二维浮点数数组消息
+message FloatArray2D {
+  repeated FloatArray values = 1;
+}
+
+// FLAME模型核心数据
+message FlameData {
+  repeated FloatArray vTemplate = 1;      // 模板顶点 (V x 3)
+  repeated IntArray kintreeTable = 2;     // 骨骼层级表
+  repeated FloatArray weights = 3;        // LBS权重 (V x J)
+  repeated FloatArray2D shapedirs = 4;    // 形状方向 (V x 3 x (shape_params + expr_params))
+  repeated FloatArray posedirs = 5;       // 姿态方向 (V*3 x pose_params)
+  repeated FloatArray JRegressor = 6;     // 关节回归器 (J x V)
+} 
