@@ -92,6 +92,15 @@
             box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
         }
 
+        .btn.webgl {
+            background: linear-gradient(45deg, #2196F3, #03A9F4);
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn.webgl:hover {
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+        }
+
         .icon {
             font-size: 24px;
         }
@@ -152,7 +161,7 @@
         <h1>FLAME 3DGS 实时渲染</h1>
         <p class="subtitle">
             基于 FLAME 模型的 3D Gaussian Splatting 实时渲染系统<br>
-            支持两种渲染引擎对比
+            支持三种渲染引擎对比
         </p>
 
         <div class="button-group">
@@ -164,6 +173,10 @@
                 <span class="icon">🌟</span>
                 Babylon 渲染器
             </a>
+            <a href="webgl_render.html" class="btn webgl">
+                <span class="icon">🎮</span>
+                WebGL 渲染器
+            </a>
         </div>
 
         <div class="description">
@@ -174,8 +187,8 @@
                     <div class="feature-desc">FLAME参数驱动的面部表情动画</div>
                 </div>
                 <div class="feature">
-                    <div class="feature-title">双引擎支持</div>
-                    <div class="feature-desc">Spark.js 和 Babylon.js 渲染对比</div>
+                    <div class="feature-title">三引擎支持</div>
+                    <div class="feature-desc">Spark.js、Babylon.js 和 WebGL 原生渲染对比</div>
                 </div>
                 <div class="feature">
                     <div class="feature-title">高性能计算</div>
