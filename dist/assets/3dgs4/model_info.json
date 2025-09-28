@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "camera": {
+    "fovXRadians": 0.299013,
+    "fovYRadians": 0.299013,
+    "rotation": 0,
+    "translationX": 0.004018,
+    "translationY": -0.023521,
+    "translationZ": 0.942727
+  }
+}

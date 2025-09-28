@@ -101,6 +101,15 @@
             box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
         }
 
+        .btn.flame {
+            background: linear-gradient(45deg, #FF5722, #E91E63);
+            box-shadow: 0 4px 15px rgba(255, 87, 34, 0.3);
+        }
+
+        .btn.flame:hover {
+            box-shadow: 0 6px 20px rgba(255, 87, 34, 0.4);
+        }
+
         .icon {
             font-size: 24px;
         }
@@ -161,7 +170,7 @@
         <h1>FLAME 3DGS 实时渲染</h1>
         <p class="subtitle">
             基于 FLAME 模型的 3D Gaussian Splatting 实时渲染系统<br>
-            支持三种渲染引擎对比
+            支持多种渲染引擎和参数编辑工具
         </p>
 
         <div class="button-group">
@@ -176,6 +185,10 @@
             <a href="webgl_render.html" class="btn webgl">
                 <span class="icon">🎮</span>
                 WebGL 渲染器
+            </a>
+            <a href="flame_editor.html" class="btn flame">
+                <span class="icon">🔥</span>
+                FLAME 编辑器
             </a>
         </div>
 

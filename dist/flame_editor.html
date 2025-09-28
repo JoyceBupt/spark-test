@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔥 FLAME Mesh Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            display: flex;
+            height: 100vh;
+            background: #1a1a1a;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        #viewport {
+            flex: 1;
+            background: #000;
+            position: relative;
+        }
+
+        #control-panel {
+            width: 350px;
+            background: #2a2a2a;
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid #464647;
+        }
+
+        h2 {
+            color: #4ec9b0;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 18px;
+            border-bottom: 1px solid #464647;
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: #569cd6;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #1e1e1e;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+
+        .upload-area {
+            text-align: center;
+            padding: 20px;
+            border: 2px dashed #555;
+            border-radius: 5px;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #007acc;
+            background: rgba(0, 122, 204, 0.1);
+        }
+
+        .upload-area.dragover {
+            border-color: #4ec9b0;
+            background: rgba(78, 201, 176, 0.1);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .upload-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #007acc;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            font-family: inherit;
+            font-size: 12px;
+            transition: background 0.3s ease;
+        }
+
+        .upload-btn:hover {
+            background: #005a9e;
+        }
+
+        .param-info {
+            margin: 8px 0;
+            color: #d4d4d4;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .param-info .label {
+            color: #4ec9b0;
+        }
+
+        .param-info .value {
+            color: #569cd6;
+        }
+
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .status.loading {
+            background: #1a365d;
+            color: #90cdf4;
+            border-left: 3px solid #4299e1;
+        }
+        .status.success {
+            background: #1a4e1a;
+            color: #68d391;
+            border-left: 3px solid #48bb78;
+        }
+        .status.error {
+            background: #4a1a1a;
+            color: #f56565;
+            border-left: 3px solid #e53e3e;
+        }
+
+        .controls-help {
+            font-size: 11px;
+            color: #969696;
+            line-height: 1.4;
+        }
+
+        .controls-help div {
+            margin: 3px 0;
+        }
+
+        /* 加载动画 */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: #4ec9b0;
+            z-index: 100;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top: 3px solid #4ec9b0;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 性能指标 */
+        .performance {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #4ec9b0;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            #control-panel {
+                width: 100%;
+                height: 200px;
+                order: 2;
+            }
+
+            #viewport {
+                height: calc(100vh - 200px);
+                order: 1;
+            }
+        }
+    </style>
+  <script type="module" crossorigin src="/assets/flame-pxPxRqCW.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/preload-helper-DD1OZmLC.js">
+  <link rel="modulepreload" crossorigin href="/assets/three-DEp2-Sz_.js">
+  <link rel="modulepreload" crossorigin href="/assets/OrbitControls-C0dhacYj.js">
+</head>
+<body>
+    <!-- 3D预览区域 -->
+    <div id="viewport">
+        <!-- 加载遮罩 -->
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="spinner"></div>
+            <div id="loading-text">正在初始化渲染器...</div>
+        </div>
+
+        <!-- 性能指标 -->
+        <div class="performance">
+            <div>FPS: <span id="fps">--</span></div>
+        </div>
+    </div>
+
+    <!-- 控制面板 -->
+    <div id="control-panel">
+        <h2>🔥 FLAME Mesh Viewer</h2>
+
+        <!-- 文件上传区域 -->
+        <div class="section">
+            <h3>📤 上传参数文件</h3>
+            <div class="upload-area" id="upload-area">
+                <div style="margin-bottom: 10px;">
+                    📄 拖放JSON文件到此处
+                </div>
+                <div style="margin-bottom: 10px;">或</div>
+                <label for="json-upload" class="upload-btn">
+                    选择 JSON 文件
+                </label>
+                <input type="file" id="json-upload" accept=".json">
+            </div>
+            <div id="upload-status" class="status" style="display:none"></div>
+        </div>
+
+        <!-- 当前参数信息 -->
+        <div class="section">
+            <h3>📊 当前参数信息</h3>
+            <div class="param-info">
+                <span class="label">文件名:</span>
+                <span class="value" id="current-file">默认参数</span>
+            </div>
+            <div class="param-info">
+                <span class="label">表情参数:</span>
+                <span class="value" id="expr-count">100</span>
+            </div>
+            <div class="param-info">
+                <span class="label">非零参数:</span>
+                <span class="value" id="nonzero-count">0</span>
+            </div>
+            <div class="param-info">
+                <span class="label">最后更新:</span>
+                <span class="value" id="last-update">--</span>
+            </div>
+        </div>
+
+        <!-- 网格信息 -->
+        <div class="section">
+            <h3>🔺 网格信息</h3>
+            <div class="param-info">
+                <span class="label">顶点数:</span>
+                <span class="value" id="vertex-count">--</span>
+            </div>
+            <div class="param-info">
+                <span class="label">面片数:</span>
+                <span class="value" id="face-count">--</span>
+            </div>
+            <div class="param-info">
+                <span class="label">状态:</span>
+                <span class="value" id="mesh-status">等待加载</span>
+            </div>
+        </div>
+
+        <!-- 相机控制说明 -->
+        <div class="section">
+            <h3>🎮 相机控制</h3>
+            <div class="controls-help">
+                <div>• 左键拖拽: 旋转视角</div>
+                <div>• 右键拖拽: 平移视角</div>
+                <div>• 滚轮: 缩放远近</div>
+                <div>• 双击: 重置视角</div>
+            </div>
+        </div>
+
+        <!-- JSON格式说明 -->
+        <div class="section">
+            <h3>📝 JSON格式说明</h3>
+            <div class="controls-help">
+                <div style="margin-bottom: 8px;">支持的参数字段：</div>
+                <div>• expr_params: 表情参数数组(100个)</div>
+                <div>• rotation: 头部旋转[x,y,z]</div>
+                <div>• translation: 头部平移[x,y,z]</div>
+                <div>• neck_pose: 颈部姿态[x,y,z]</div>
+                <div>• jaw_pose: 下颌姿态[x,y,z]</div>
+                <div>• eyes_pose: 眼部姿态(6个值)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入Three.js和编辑器脚本 -->
+</body>
+</html>
