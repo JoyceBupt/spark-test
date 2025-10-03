@@ -4,12 +4,42 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SPAvatar - Canvas 状态管理</title>
-    <script type="module" crossorigin src="/assets/index-lwBIrOt3.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-Db4SWWQV.css">
+    <title>SPAvatar 3DGS</title>
+    <script type="module" crossorigin src="/assets/index-BczrLr-Q.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-iOOnhtN6.css">
   </head>
   <body>
-    <div id="app"></div>
+    <!-- 加载状态 -->
+    <div id="loader" class="loader-overlay">
+      <div class="loader-content">
+        <div class="spinner"></div>
+        <p id="loader-message">正在初始化...</p>
+      </div>
+    </div>
+
+    <!-- 错误状态 -->
+    <div id="error" class="error-overlay" style="display: none;">
+      <p id="error-message"></p>
+    </div>
+
+    <!-- Canvas -->
+    <canvas id="canvas" class="avatar-canvas"></canvas>
+
+    <!-- 后端显示（左上角） -->
+    <div id="backend-info" class="backend-info" style="display: none;">
+      <span class="label">Backend:</span>
+      <span id="backend-badge" class="badge"></span>
+    </div>
+
+    <!-- 性能统计（右上角） -->
+    <div id="performance-stats" class="stats-panel" style="display: none;"></div>
+
+    <!-- 控制面板（右下角） -->
+    <div id="controls" class="controls-panel" style="display: none;">
+      <button id="play-btn" class="control-btn primary">▶️ 播放</button>
+      <button id="sort-btn" class="control-btn">⚡ Balance</button>
+    </div>
+
   </body>
 </html>
 
