@@ -1,187 +1,199 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>t3d.js Splat Model Viewer</title>
+    <style>
+      body {
+        margin: 0;
+        background-color: white;
+      }
 
-<head>
-  <meta charset="UTF-8">
-  <title>t3d.js Splat Model Viewer</title>
-  <style>
-    body {
-      margin: 0;
-      background-color: white;
-    }
+      #controls {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 100;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 10px;
+        border-radius: 5px;
+      }
 
-    #controls {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 100;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 10px;
-      border-radius: 5px;
-    }
+      button {
+        padding: 10px 15px;
+        margin: 5px;
+        font-size: 14px;
+        cursor: pointer;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 3px;
+      }
 
-    button {
-      padding: 10px 15px;
-      margin: 5px;
-      font-size: 14px;
-      cursor: pointer;
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 3px;
-    }
+      button:hover {
+        background: #0056b3;
+      }
 
-    button:hover {
-      background: #0056b3;
-    }
+      #rotateToggle {
+        background: #28a745;
+      }
 
-    #rotateToggle {
-      background: #28a745;
-    }
+      #rotateToggle.active {
+        background: #dc3545;
+      }
+    </style>
+  </head>
 
-    #rotateToggle.active {
-      background: #dc3545;
-    }
-  </style>
-</head>
+  <body>
+    <div id="controls">
+      <button id="load56k">加载 56K 模型</button>
+      <button id="load150k">加载 150K 模型</button>
+      <br />
+      <button id="rotateToggle">开启旋转</button>
+    </div>
+    <script type="module">
+      import * as t3d from "t3d";
+      import { PLYLoader } from "t3d-gaussian-splatting";
+      import { OrbitControls } from "t3d/addons/controls/OrbitControls.js";
+      import VConsole from "vconsole";
+      import Stats from "stats.js";
 
-<body>
-  <div id="controls">
-    <button id="load56k">加载 56K 模型</button>
-    <button id="load150k">加载 150K 模型</button>
-    <br>
-    <button id="rotateToggle">开启旋转</button>
-  </div>
-  <script type="module">
-    import * as t3d from 't3d';
-    import { PLYLoader } from 't3d-gaussian-splatting';
-    import { OrbitControls } from 't3d/addons/controls/OrbitControls.js';
-    import VConsole from "vconsole";
-    import Stats from "stats.js";
+      // 初始化手机端控制台
+      const vConsole = new VConsole();
 
-    // 初始化手机端控制台
-    const vConsole = new VConsole();
+      // 初始化性能监视器
+      const stats = new Stats();
+      stats.showPanel(0); // 0: fps, 1: ms, 2: mb
+      document.body.appendChild(stats.dom);
 
-    // 初始化性能监视器
-    const stats = new Stats();
-    stats.showPanel(0); // 0: fps, 1: ms, 2: mb
-    document.body.appendChild(stats.dom);
+      const width = window.innerWidth;
+      const height = window.innerHeight;
 
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      document.body.appendChild(canvas);
 
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    document.body.appendChild(canvas);
+      const gl = canvas.getContext("webgl2", { antialias: true });
+      const renderer = new t3d.WebGLRenderer(gl);
+      renderer.setClearColor(1, 1, 1, 1);
+      const backRenderTarget = new t3d.RenderTargetBack(canvas);
 
-    const gl = canvas.getContext('webgl2', { antialias: true });
-    const renderer = new t3d.WebGLRenderer(gl);
-    renderer.setClearColor(1, 1, 1, 1);
-    const backRenderTarget = new t3d.RenderTargetBack(canvas);
+      const scene = new t3d.Scene();
+      const camera = new t3d.Camera();
+      camera.position.set(0, 0, 2);
+      camera.lookAt(new t3d.Vector3(0, 0, 0), new t3d.Vector3(0, 1, 0));
+      camera.setPerspective((75 / 180) * Math.PI, width / height, 0.1, 1000);
+      scene.add(camera);
 
-    const scene = new t3d.Scene();
-    const camera = new t3d.Camera();
-    camera.position.set(0, 0, 2);
-    camera.lookAt(new t3d.Vector3(0, 0, 0), new t3d.Vector3(0, 1, 0));
-    camera.setPerspective(75 / 180 * Math.PI, width / height, 0.1, 1000);
-    scene.add(camera);
+      const controls = new OrbitControls(camera, canvas);
 
-    const controls = new OrbitControls(camera, canvas);
+      const plyLoader = new PLYLoader();
 
-    const plyLoader = new PLYLoader();
+      let currentSplatNode = null;
+      let isRotating = false; // 默认静止
+      const rotationSpeed = 0.01;
 
-    let currentSplatNode = null;
-    let isRotating = false; // 默认静止
-    const rotationSpeed = 0.01;
-
-    async function loadModel(url) {
-      if (currentSplatNode) {
-        scene.remove(currentSplatNode);
-        // Terminate the worker to prevent it from interfering.
-        if (currentSplatNode._sortWorker && currentSplatNode._sortWorker._worker) {
-          currentSplatNode._sortWorker._worker.terminate();
+      async function loadModel(url) {
+        if (currentSplatNode) {
+          scene.remove(currentSplatNode);
+          // Terminate the worker to prevent it from interfering.
+          if (
+            currentSplatNode._sortWorker &&
+            currentSplatNode._sortWorker._worker
+          ) {
+            currentSplatNode._sortWorker._worker.terminate();
+          }
+          currentSplatNode = null;
         }
-        currentSplatNode = null;
+
+        try {
+          console.log(`Loading model: ${url}`);
+          const { node } = await plyLoader.loadAsync(url);
+          console.log("Model loaded successfully", node);
+          currentSplatNode = node;
+          currentSplatNode.position.set(0, 0, -1);
+          // 在原有基础上放大两倍 (1.5 * 2 = 3.0)
+          currentSplatNode.scale.set(3.0, 3.0, 3.0);
+          currentSplatNode.euler.y = Math.PI;
+          currentSplatNode.euler.x = Math.PI; // Flip the model upside down
+          scene.add(currentSplatNode);
+        } catch (e) {
+          console.error("Error loading model:", e);
+        }
       }
 
-      try {
-        console.log(`Loading model: ${url}`);
-        const { node } = await plyLoader.loadAsync(url);
-        console.log('Model loaded successfully', node);
-        currentSplatNode = node;
-        currentSplatNode.position.set(0, 0, -1);
-        // 在原有基础上放大两倍 (1.5 * 2 = 3.0)
-        currentSplatNode.scale.set(3.0, 3.0, 3.0);
-        currentSplatNode.euler.y = Math.PI;
-        currentSplatNode.euler.x = Math.PI; // Flip the model upside down
-        scene.add(currentSplatNode);
-      } catch (e) {
-        console.error('Error loading model:', e);
-      }
-    }
-
-    // 旋转切换功能
-    function toggleRotation() {
-      isRotating = !isRotating;
-      const toggleBtn = document.getElementById('rotateToggle');
-      if (isRotating) {
-        toggleBtn.textContent = '停止旋转';
-        toggleBtn.classList.add('active');
-      } else {
-        toggleBtn.textContent = '开启旋转';
-        toggleBtn.classList.remove('active');
-      }
-    }
-
-    document.getElementById('load56k').addEventListener('click', () => {
-      loadModel("/splats/model_56k.ply");
-    });
-
-    document.getElementById('load150k').addEventListener('click', () => {
-      loadModel("/splats/model_150k.ply");
-    });
-
-    document.getElementById('rotateToggle').addEventListener('click', toggleRotation);
-
-    loadModel("/splats/model_56k.ply");
-
-    window.addEventListener("resize", () => {
-      const newWidth = window.innerWidth;
-      const newHeight = window.innerHeight;
-      camera.setPerspective(75 / 180 * Math.PI, newWidth / newHeight, 0.1, 1000);
-      backRenderTarget.resize(newWidth, newHeight);
-    });
-
-    function animate() {
-      requestAnimationFrame(animate);
-
-      stats.begin();
-
-      controls.update();
-
-      if (currentSplatNode) {
-        // Auto-rotation (only if enabled)
+      // 旋转切换功能
+      function toggleRotation() {
+        isRotating = !isRotating;
+        const toggleBtn = document.getElementById("rotateToggle");
         if (isRotating) {
-          currentSplatNode.euler.y += rotationSpeed;
+          toggleBtn.textContent = "停止旋转";
+          toggleBtn.classList.add("active");
+        } else {
+          toggleBtn.textContent = "开启旋转";
+          toggleBtn.classList.remove("active");
         }
-        // The splat node requires an update call each frame
-        currentSplatNode.update(camera, backRenderTarget.width, backRenderTarget.height);
       }
 
-      scene.updateMatrix();
-      scene.updateRenderStates(camera);
-      scene.updateRenderQueue(camera);
+      document.getElementById("load56k").addEventListener("click", () => {
+        loadModel("/splats/model_56k.ply");
+      });
 
-      renderer.setRenderTarget(backRenderTarget);
-      renderer.clear(true, true, false);
-      renderer.renderScene(scene, camera);
+      document.getElementById("load150k").addEventListener("click", () => {
+        loadModel("/splats/model_150k.ply");
+      });
 
-      stats.end();
-    }
+      document
+        .getElementById("rotateToggle")
+        .addEventListener("click", toggleRotation);
 
-    animate();
-  </script>
-</body>
+      loadModel("/splats/model_56k.ply");
 
+      window.addEventListener("resize", () => {
+        const newWidth = window.innerWidth;
+        const newHeight = window.innerHeight;
+        camera.setPerspective(
+          (75 / 180) * Math.PI,
+          newWidth / newHeight,
+          0.1,
+          1000
+        );
+        backRenderTarget.resize(newWidth, newHeight);
+      });
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        stats.begin();
+
+        controls.update();
+
+        if (currentSplatNode) {
+          // Auto-rotation (only if enabled)
+          if (isRotating) {
+            currentSplatNode.euler.y += rotationSpeed;
+          }
+          // The splat node requires an update call each frame
+          currentSplatNode.update(
+            camera,
+            backRenderTarget.width,
+            backRenderTarget.height
+          );
+        }
+
+        scene.updateMatrix();
+        scene.updateRenderStates(camera);
+        scene.updateRenderQueue(camera);
+
+        renderer.setRenderTarget(backRenderTarget);
+        renderer.clear(true, true, false);
+        renderer.renderScene(scene, camera);
+
+        stats.end();
+      }
+
+      animate();
+    </script>
+  </body>
 </html>
